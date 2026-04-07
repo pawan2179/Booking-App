@@ -4,6 +4,10 @@ import (
 	"fmt"
 	db "hotel-service/config/db"
 	env "hotel-service/config/env"
+	"hotel-service/controller"
+	"hotel-service/repository"
+	router "hotel-service/routes"
+	"hotel-service/service"
 	"net/http"
 	"time"
 )
@@ -30,7 +34,13 @@ func NewApplication(config Config) *Application {
 }
 
 func Run(application *Application) error {
-	_, err := db.SetupDB()
+	db, err := db.SetupDB()
+
+	hr := repository.NewHotelRepositoryImpl(db)
+	hs := service.NewHotelService(&hr)
+	hc := controller.NewHotelController(hs)
+	hotelRouter := router.NewHotelRouter(&hc)
+	router := router.SetupRouter(&hotelRouter)
 	if err != nil {
 		fmt.Println("Failed to connect to DB:", err)
 		return fmt.Errorf("Failed to connect to Database: %w", err)
@@ -40,7 +50,7 @@ func Run(application *Application) error {
 
 	server := &http.Server{
 		Addr:         application.Config.Addr,
-		Handler:      nil,
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
